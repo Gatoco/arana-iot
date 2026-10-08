@@ -6,14 +6,14 @@
 import * as THREE from "three";
 import { LEGS, type LegId } from "../protocol";
 import { BODY, HIP, LEG_GEOMETRY, legSide, solveLeg, type FootTarget } from "../sim/spiderModel";
+import { LEG_RIG, solveRenderLeg } from "./legRig";
 import type { RobotState } from "../sim/engine";
-
-const REACH = LEG_GEOMETRY.reach;
 
 interface LegParts {
   hip: THREE.Group;
-  coxa: THREE.Group;
-  femur: THREE.Mesh;
+  yaw: THREE.Group;
+  pitch: THREE.Group;
+  knee: THREE.Group;
 }
 
 export class SpiderView {
@@ -91,32 +91,49 @@ export class SpiderView {
   }
 
   private buildLeg(leg: LegId): void {
-    const hip = new THREE.Group();
     const h = HIP[leg];
-    hip.position.set(h.x, 0, h.z);
     const side = legSide(leg);
 
-    const coxa = new THREE.Group();
-    hip.add(coxa);
+    const hip = new THREE.Group();
+    hip.position.set(h.x, 0, h.z);
 
+    // Outer frame handles fore/aft swing; inner frame pitches the leg.
+    const yaw = new THREE.Group();
+    hip.add(yaw);
+    const pitch = new THREE.Group();
+    yaw.add(pitch);
+
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.4, roughness: 0.5 });
     const femur = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.004, 0.004, REACH, 8),
-      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.4, roughness: 0.5 }),
+      new THREE.CylinderGeometry(0.004, 0.004, LEG_RIG.femur, 8),
+      mat,
     );
-    // Orient cylinder along +X (out from the body) by default.
-    femur.rotation.z = Math.PI / 2;
-    femur.position.set((side * REACH) / 2, -LEG_GEOMETRY.hipHeight, 0);
-    coxa.add(femur);
+    femur.rotation.z = (side * Math.PI) / 2;
+    femur.position.set((side * LEG_RIG.femur) / 2, 0, 0);
+    pitch.add(femur);
+
+    // Knee: fixed-bend joint between femur and tibia.
+    const knee = new THREE.Group();
+    knee.position.set(side * LEG_RIG.femur, 0, 0);
+    pitch.add(knee);
+
+    const tibia = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.003, 0.003, LEG_RIG.tibia, 8),
+      mat,
+    );
+    tibia.rotation.z = (side * Math.PI) / 2;
+    tibia.position.set((side * LEG_RIG.tibia) / 2, 0, 0);
+    knee.add(tibia);
 
     const foot = new THREE.Mesh(
       new THREE.SphereGeometry(0.008, 10, 10),
       new THREE.MeshStandardMaterial({ color: 0x22c55e }),
     );
-    foot.position.set(side * REACH, -LEG_GEOMETRY.hipHeight, 0);
-    coxa.add(foot);
+    foot.position.set(side * LEG_RIG.tibia, 0, 0);
+    knee.add(foot);
 
     this.root.add(hip);
-    this.legs.set(leg, { hip, coxa, femur });
+    this.legs.set(leg, { hip, yaw, pitch, knee });
   }
 
   update(state: RobotState): void {
@@ -128,12 +145,11 @@ export class SpiderView {
       const parts = this.legs.get(leg);
       if (!parts) continue;
       const target: FootTarget = state.targets[leg] ?? { forward: 0, height: 0 };
-      const angles = solveLeg(target);
       const side = legSide(leg);
-      parts.coxa.rotation.y = angles.coxa * side;
-      // Femur pitch: raising the foot lifts the whole leg.
-      parts.coxa.rotation.z = -angles.femur * side;
-      parts.coxa.rotation.x = 0;
+      const rig = solveRenderLeg(target.height);
+      parts.yaw.rotation.y = solveLeg(target).coxa * side;
+      parts.pitch.rotation.z = rig.femurPitch * side;
+      parts.knee.rotation.z = rig.kneeBend * side;
     }
 
     // Follow camera, slightly behind the spider along its heading.

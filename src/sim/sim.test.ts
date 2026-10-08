@@ -6,6 +6,7 @@
 import { test, expect } from "vitest";
 import { computeGait } from "./gait";
 import { solveLeg, footPosition, LEG_GEOMETRY } from "./spiderModel";
+import { solveRenderLeg, LEG_RIG } from "../scene/legRig";
 import { createEngine } from "./engine";
 import { CMD_KIND, GAIT, LEG, SERVO_COUNT } from "../protocol";
 
@@ -60,4 +61,24 @@ test("stop command resets to rest", () => {
   expect(s.forward).toBe(0);
   expect(s.turn).toBe(0);
   expect(s.gait).toBe(GAIT.REST);
+});
+
+test("render leg places the foot at the sim reach when planted", () => {
+  const planted = solveRenderLeg(0);
+  const { femur: L1, tibia: L2 } = LEG_RIG;
+  const tibiaAngle = planted.femurPitch + planted.kneeBend;
+  const x = L1 * Math.cos(planted.femurPitch) + L2 * Math.cos(tibiaAngle);
+  const y = L1 * Math.sin(planted.femurPitch) + L2 * Math.sin(tibiaAngle);
+  expect(Math.abs(x - LEG_GEOMETRY.reach)).toBeLessThan(1e-6);
+  expect(Math.abs(y + LEG_GEOMETRY.hipHeight)).toBeLessThan(1e-6);
+});
+
+test("render leg lifts the foot by the requested height", () => {
+  for (const h of [0, 0.01, LEG_GEOMETRY.lift]) {
+    const rig = solveRenderLeg(h);
+    const tibiaAngle = rig.femurPitch + rig.kneeBend;
+    const y =
+      LEG_RIG.femur * Math.sin(rig.femurPitch) + LEG_RIG.tibia * Math.sin(tibiaAngle);
+    expect(Math.abs(y + LEG_GEOMETRY.hipHeight - h)).toBeLessThan(1e-6);
+  }
 });
