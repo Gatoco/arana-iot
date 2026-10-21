@@ -32,6 +32,10 @@ const DT = 1 / TICK_HZ;
  * Extension point: turns `arana/brain/state` payloads into body behavior while
  * the body is in `auto`. Intentionally not implemented yet; the brain message
  * shape is not part of the protocol contract.
+ *
+ * Rule for the implementation: the bridge must drive the engine through a
+ * non-operator input. Going through `command()` / `engine.apply()` or publishing
+ * on `arana/cmd` counts as operator input and would switch the body to manual.
  */
 export type BrainBridge = (brainState: unknown) => void;
 

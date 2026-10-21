@@ -76,7 +76,8 @@ export class TwinEngine {
     this.state.operatorIdle = 0;
     switch (cmd.kind) {
       case CMD_KIND.MODE:
-        this.state.mode = cmd.mode;
+        // Payloads come off the wire unvalidated; an unknown value must not wedge the mode.
+        if (isControlMode(cmd.mode)) this.state.mode = cmd.mode;
         break;
       case CMD_KIND.MOVE:
         this.state.mode = CONTROL_MODE.MANUAL;
@@ -170,6 +171,10 @@ export class TwinEngine {
   bodyHeight(): number {
     return LEG_GEOMETRY.hipHeight + LEG_GEOMETRY.lift;
   }
+}
+
+function isControlMode(value: unknown): value is ControlMode {
+  return value === CONTROL_MODE.AUTO || value === CONTROL_MODE.MANUAL;
 }
 
 export function createEngine(): TwinEngine {

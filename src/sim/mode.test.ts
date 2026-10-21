@@ -80,3 +80,24 @@ test("brain state reaches the bridge only in auto", () => {
   runtime.handleBrainState({ any: "payload" });
   expect(bridge).toHaveBeenCalledTimes(1);
 });
+
+test("S5: an invalid mode value is ignored and does not wedge the fallback", () => {
+  const engine = createEngine();
+  engine.apply({ kind: CMD_KIND.MOVE, forward: 1, turn: 0 });
+  for (const bad of ["AUTO", "Manual", undefined, 3]) {
+    engine.apply(JSON.parse(JSON.stringify({ kind: CMD_KIND.MODE, mode: bad })));
+    expect(engine.getState().mode).toBe(CONTROL_MODE.MANUAL);
+  }
+  stepFor(engine, OPERATOR_IDLE_TIMEOUT_S + 0.1);
+  expect(engine.telemetry().mode).toBe(CONTROL_MODE.AUTO);
+});
+
+test("S7: fallback happens at the 5 s boundary, not later", () => {
+  const engine = createEngine();
+  engine.apply({ kind: CMD_KIND.MOVE, forward: 1, turn: 0 });
+  stepFor(engine, OPERATOR_IDLE_TIMEOUT_S - DT);
+  expect(engine.getState().mode).toBe(CONTROL_MODE.MANUAL);
+  engine.step(DT);
+  engine.step(DT);
+  expect(engine.getState().mode).toBe(CONTROL_MODE.AUTO);
+});
