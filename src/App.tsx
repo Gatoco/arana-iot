@@ -5,9 +5,16 @@ import { GaitButtons, ServoBar, TelemetryPanel } from "./ui/TelemetryPanel";
 import { TwinRuntime } from "./runtime/TwinRuntime";
 import { useTwin } from "./runtime/useTwin";
 import { TOPIC, type Gait } from "./protocol";
-import { TRANSPORT_KIND, type TransportKind } from "./net/transport";
+import { TRANSPORT_KIND, type TransportAuth, type TransportKind } from "./net/transport";
 
 const BROKER_DEFAULT = "ws://localhost:9001";
+
+interface LinkConfig {
+  kind: TransportKind;
+  url: string;
+  username: string;
+  password: string;
+}
 
 export default function App() {
   const runtimeRef = useRef<TwinRuntime | null>(null);
@@ -15,9 +22,11 @@ export default function App() {
   const runtime = runtimeRef.current;
 
   const snap = useTwin(runtime);
-  const [link, setLink] = useState<{ kind: TransportKind; url: string }>({
+  const [link, setLink] = useState<LinkConfig>({
     kind: TRANSPORT_KIND.LOOPBACK,
     url: BROKER_DEFAULT,
+    username: "arana",
+    password: "",
   });
 
   useEffect(() => {
@@ -25,9 +34,13 @@ export default function App() {
     return () => runtime.stop();
   }, [runtime]);
 
-  function applyLink(next: { kind: TransportKind; url: string }): void {
+  function applyLink(next: LinkConfig): void {
     setLink(next);
-    runtime.reconnect(next.kind, next.url);
+    const auth: TransportAuth | undefined =
+      next.username || next.password
+        ? { username: next.username, password: next.password }
+        : undefined;
+    runtime.reconnect(next.kind, next.url, auth);
   }
 
   return (
@@ -47,7 +60,7 @@ export default function App() {
           </h2>
           <div className="flex gap-2">
             <button
-              onClick={() => applyLink({ kind: TRANSPORT_KIND.LOOPBACK, url: link.url })}
+              onClick={() => applyLink({ ...link, kind: TRANSPORT_KIND.LOOPBACK })}
               className={
                 "flex-1 rounded px-2 py-1 text-xs " +
                 (link.kind === TRANSPORT_KIND.LOOPBACK ? "bg-accent text-slate-900" : "bg-panel")
@@ -56,7 +69,7 @@ export default function App() {
               Loopback
             </button>
             <button
-              onClick={() => applyLink({ kind: TRANSPORT_KIND.MQTT, url: link.url })}
+              onClick={() => applyLink({ ...link, kind: TRANSPORT_KIND.MQTT })}
               className={
                 "flex-1 rounded px-2 py-1 text-xs " +
                 (link.kind === TRANSPORT_KIND.MQTT ? "bg-accent text-slate-900" : "bg-panel")
@@ -71,6 +84,32 @@ export default function App() {
             spellCheck={false}
             className="rounded bg-panel px-2 py-1 text-xs font-mono text-slate-200 outline-none focus:ring-1 focus:ring-accent"
           />
+          <div className="flex gap-2">
+            <input
+              value={link.username}
+              onChange={(e) => setLink({ ...link, username: e.target.value })}
+              spellCheck={false}
+              placeholder="user"
+              autoComplete="off"
+              className="w-1/3 rounded bg-panel px-2 py-1 text-xs font-mono text-slate-200 outline-none focus:ring-1 focus:ring-accent"
+            />
+            <input
+              value={link.password}
+              onChange={(e) => setLink({ ...link, password: e.target.value })}
+              spellCheck={false}
+              placeholder="password"
+              type="password"
+              autoComplete="off"
+              className="flex-1 rounded bg-panel px-2 py-1 text-xs font-mono text-slate-200 outline-none focus:ring-1 focus:ring-accent"
+            />
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {snap.transport.kind} ·{" "}
+            <span className={snap.transport.connected ? "text-ok" : "text-danger"}>
+              {snap.transport.connected ? "connected" : "offline"}
+            </span>
+            {snap.transport.error ? ` · ${snap.transport.error}` : ""}
+          </div>
         </section>
 
         <section className="flex flex-col gap-3">

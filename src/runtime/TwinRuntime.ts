@@ -11,6 +11,7 @@ import {
   createTransport,
   TRANSPORT_KIND,
   type Transport,
+  type TransportAuth,
   type TransportKind,
   type TransportStatus,
 } from "../net/transport";
@@ -34,9 +35,13 @@ export class TwinRuntime {
   private snapshot: RuntimeSnapshot;
   private unsubTelemetry: (() => void) | null = null;
 
-  constructor(kind: TransportKind = TRANSPORT_KIND.LOOPBACK, brokerUrl = "ws://localhost:9001") {
+  constructor(
+    kind: TransportKind = TRANSPORT_KIND.LOOPBACK,
+    brokerUrl = "ws://localhost:9001",
+    auth?: TransportAuth,
+  ) {
     this.engine = createEngine();
-    this.transport = createTransport(kind, brokerUrl);
+    this.transport = createTransport(kind, brokerUrl, auth);
     this.snapshot = {
       state: this.engine.getState(),
       joints: this.engine.joints(),
@@ -98,10 +103,10 @@ export class TwinRuntime {
     this.engine.setWorld({ wall });
   }
 
-  reconnect(kind: TransportKind, brokerUrl: string): void {
+  reconnect(kind: TransportKind, brokerUrl: string, auth?: TransportAuth): void {
     this.unsubTelemetry?.();
     this.transport.disconnect();
-    this.transport = createTransport(kind, brokerUrl);
+    this.transport = createTransport(kind, brokerUrl, auth);
     this.transport.onStatus((status) => this.update({ transport: status }));
     this.transport.subscribe(TOPIC.CMD, (payload) => this.command(payload as Command, false));
     this.transport.connect();
