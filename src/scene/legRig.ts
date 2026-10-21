@@ -9,16 +9,12 @@
  * femur and tibia so the foot lands at that reach.
  */
 
-import { LEG_GEOMETRY } from "../sim/spiderModel";
+import { LEG_GEOMETRY, LEG_RIG } from "../sim/spiderModel";
+
+export { LEG_RIG };
 
 const REACH = LEG_GEOMETRY.reach;
 const HIP_HEIGHT = LEG_GEOMETRY.hipHeight;
-
-/** Segment lengths, meters. Chosen so the neutral knee bends ~118deg. */
-export const LEG_RIG = {
-  femur: 0.06,
-  tibia: 0.06,
-} as const;
 
 export interface RenderLeg {
   /** Femur pitch from horizontal, radians, in the leg plane. */

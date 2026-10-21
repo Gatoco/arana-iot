@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { joystickToMove } from "./joystickMath";
 
 interface JoystickProps {
   onChange: (forward: number, turn: number) => void;
@@ -26,7 +27,8 @@ export function Joystick({ onChange, onRelease }: JoystickProps) {
       dy /= mag;
     }
     setKnob({ x: dx, y: dy });
-    onChange(-dy, dx);
+    const move = joystickToMove(dx, dy);
+    onChange(move.forward, move.turn);
   }
 
   function end(): void {

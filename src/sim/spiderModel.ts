@@ -30,6 +30,27 @@ export const LEG_GEOMETRY = {
   maxYaw: Math.PI / 4,
 } as const;
 
+/** Visual segment lengths of each leg (femur → tibia chain), meters. */
+export const LEG_RIG = {
+  femur: 0.06,
+  tibia: 0.06,
+} as const;
+
+/** MG90 servo body, meters (approximate datasheet envelope, without tabs). */
+export const SERVO = {
+  width: 0.0122,
+  height: 0.0225,
+  depth: 0.0227,
+} as const;
+
+/** HC-SR04 ultrasonic sensor: datasheet range 2–400 cm, ~15° measuring angle. */
+export const SENSOR = {
+  minRange: 0.02,
+  maxRange: 4.0,
+  /** Half of the measuring cone angle, radians. */
+  coneHalfAngle: (7.5 * Math.PI) / 180,
+} as const;
+
 /** Mount position of each leg's hip relative to body center. */
 export const HIP: Record<LegId, { x: number; z: number }> = {
   [LEG.FL]: { x: -BODY.width / 2, z: -BODY.length / 2 },

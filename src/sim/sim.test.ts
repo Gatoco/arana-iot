@@ -44,7 +44,7 @@ test("IK clamps and never returns NaN", () => {
 
 test("engine integrates motion and emits 8 servos", () => {
   const engine = createEngine();
-  engine.setWorld({ wall: null });
+  engine.setWorld({ sensor: false });
   engine.apply({ kind: CMD_KIND.MOVE, forward: 1, turn: 0 });
   for (let i = 0; i < 30; i++) engine.step(1 / 30);
   const s = engine.getState();

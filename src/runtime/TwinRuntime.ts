@@ -5,18 +5,39 @@
  * travel. React subscribes for rendering; it never drives the sim directly.
  */
 
-import { CMD_KIND, GAIT, TOPIC, type Command, type Gait, type Telemetry } from "../protocol";
+import {
+  CMD_KIND,
+  CONTROL_MODE,
+  GAIT,
+  TOPIC,
+  type Command,
+  type ControlMode,
+  type Gait,
+  type Telemetry,
+} from "../protocol";
 import { createEngine, TwinEngine, type RobotState } from "../sim/engine";
 import {
   createTransport,
   TRANSPORT_KIND,
   type Transport,
+  type TransportAuth,
   type TransportKind,
   type TransportStatus,
 } from "../net/transport";
 
 const TICK_HZ = 30;
 const DT = 1 / TICK_HZ;
+
+/**
+ * Extension point: turns `arana/brain/state` payloads into body behavior while
+ * the body is in `auto`. Intentionally not implemented yet; the brain message
+ * shape is not part of the protocol contract.
+ *
+ * Rule for the implementation: the bridge must drive the engine through a
+ * non-operator input. Going through `command()` / `engine.apply()` or publishing
+ * on `arana/cmd` counts as operator input and would switch the body to manual.
+ */
+export type BrainBridge = (brainState: unknown) => void;
 
 export interface RuntimeSnapshot {
   state: RobotState;
@@ -33,10 +54,15 @@ export class TwinRuntime {
   private listeners = new Set<() => void>();
   private snapshot: RuntimeSnapshot;
   private unsubTelemetry: (() => void) | null = null;
+  private brainBridge: BrainBridge | null = null;
 
-  constructor(kind: TransportKind = TRANSPORT_KIND.LOOPBACK, brokerUrl = "ws://localhost:9001") {
+  constructor(
+    kind: TransportKind = TRANSPORT_KIND.LOOPBACK,
+    brokerUrl = "ws://localhost:9001",
+    auth?: TransportAuth,
+  ) {
     this.engine = createEngine();
-    this.transport = createTransport(kind, brokerUrl);
+    this.transport = createTransport(kind, brokerUrl, auth);
     this.snapshot = {
       state: this.engine.getState(),
       joints: this.engine.joints(),
@@ -44,13 +70,26 @@ export class TwinRuntime {
       transport: this.transport.status(),
       running: false,
     };
-    this.transport.onStatus((status) => this.update({ transport: status }));
-    this.transport.connect();
+    this.bindTransport();
+  }
 
+  /** Wire the current transport: status, operator commands, brain state. */
+  private bindTransport(): void {
+    this.transport.onStatus((status) => this.update({ transport: status }));
     // Commands arriving from outside (MQTT) feed the engine.
-    this.transport.subscribe(TOPIC.CMD, (payload) => {
-      this.command(payload as Command, false);
-    });
+    this.transport.subscribe(TOPIC.CMD, (payload) => this.command(payload as Command, false));
+    this.transport.subscribe(TOPIC.BRAIN_STATE, (payload) => this.handleBrainState(payload));
+    this.transport.connect();
+  }
+
+  setBrainBridge(bridge: BrainBridge | null): void {
+    this.brainBridge = bridge;
+  }
+
+  /** Brain state is honored only in `auto`; in `manual` the operator owns the body. */
+  handleBrainState(payload: unknown): void {
+    if (this.engine.getState().mode !== CONTROL_MODE.AUTO) return;
+    this.brainBridge?.(payload);
   }
 
   start(): void {
@@ -94,17 +133,15 @@ export class TwinRuntime {
     this.command({ kind: CMD_KIND.GAIT, gait });
   }
 
-  setWorld(wall: number | null): void {
-    this.engine.setWorld({ wall });
+  setMode(mode: ControlMode): void {
+    this.command({ kind: CMD_KIND.MODE, mode });
   }
 
-  reconnect(kind: TransportKind, brokerUrl: string): void {
+  reconnect(kind: TransportKind, brokerUrl: string, auth?: TransportAuth): void {
     this.unsubTelemetry?.();
     this.transport.disconnect();
-    this.transport = createTransport(kind, brokerUrl);
-    this.transport.onStatus((status) => this.update({ transport: status }));
-    this.transport.subscribe(TOPIC.CMD, (payload) => this.command(payload as Command, false));
-    this.transport.connect();
+    this.transport = createTransport(kind, brokerUrl, auth);
+    this.bindTransport();
   }
 
   subscribe = (cb: () => void): (() => void) => {

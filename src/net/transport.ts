@@ -31,6 +31,12 @@ export interface TransportStatus {
   error?: string;
 }
 
+/** Credentials for a broker that requires authentication. */
+export interface TransportAuth {
+  username: string;
+  password: string;
+}
+
 /** In-memory bus: same semantics as MQTT, zero infrastructure. */
 export class LoopbackTransport implements Transport {
   private handlers = new Map<string, Set<(payload: unknown) => void>>();
@@ -79,16 +85,22 @@ export class MqttTransport implements Transport {
   private statusCbs = new Set<(status: TransportStatus) => void>();
   private current: TransportStatus;
   private brokerUrl: string;
+  private auth?: TransportAuth;
 
-  constructor(brokerUrl: string) {
+  constructor(brokerUrl: string, auth?: TransportAuth) {
     this.brokerUrl = brokerUrl;
+    this.auth = auth;
     this.current = { kind: TRANSPORT_KIND.MQTT, connected: false, broker: brokerUrl };
   }
 
   connect(): void {
     if (this.client) return;
     try {
-      this.client = mqtt.connect(this.brokerUrl, { reconnectPeriod: 3000 });
+      this.client = mqtt.connect(this.brokerUrl, {
+        reconnectPeriod: 3000,
+        username: this.auth?.username,
+        password: this.auth?.password,
+      });
       this.client.on("connect", () => {
         this.update({ connected: true, error: undefined });
         for (const topic of this.handlers.keys()) this.client?.subscribe(topic);
@@ -148,8 +160,14 @@ export class MqttTransport implements Transport {
   }
 }
 
-export function createTransport(kind: TransportKind, brokerUrl: string): Transport {
-  return kind === TRANSPORT_KIND.MQTT ? new MqttTransport(brokerUrl) : new LoopbackTransport();
+export function createTransport(
+  kind: TransportKind,
+  brokerUrl: string,
+  auth?: TransportAuth,
+): Transport {
+  return kind === TRANSPORT_KIND.MQTT
+    ? new MqttTransport(brokerUrl, auth)
+    : new LoopbackTransport();
 }
 
 export type { Command, Telemetry };
