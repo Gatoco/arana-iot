@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arana Controller</string>
+
+    <string name="login_title">Arana login</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="sign_in">Sign in</string>
+    <string name="create_account">Create account</string>
+    <string name="error_empty_credentials">Username and password are required</string>
+    <string name="error_bad_credentials">Invalid username or password</string>
+    <string name="error_user_exists">That username already exists</string>
+    <string name="account_created">Account created, you can sign in now</string>
+
+    <string name="connection_title">Broker connection</string>
+    <string name="host">Host</string>
+    <string name="port">Port</string>
+    <string name="broker_username">Broker username (optional)</string>
+    <string name="broker_password">Broker password (optional)</string>
+    <string name="open_control">Control</string>
+    <string name="open_body_mode">Body Mode</string>
+    <string name="error_host_port">Enter a host and a port between 1 and 65535</string>
+
+    <string name="control_title">Control</string>
+    <string name="body_title">Body Mode</string>
+    <string name="status_connecting">Connecting to %1$s…</string>
+    <string name="status_connected">Connected to %1$s</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_error">Connection error: %1$s</string>
+
+    <string name="forward">Forward</string>
+    <string name="back">Back</string>
+    <string name="left">Left</string>
+    <string name="right">Right</string>
+    <string name="stop">STOP</string>
+    <string name="gait">Gait</string>
+    <string name="tetrapod">Tetrapod</string>
+    <string name="wave">Wave</string>
+    <string name="rest">Rest</string>
+    <string name="speed">Speed</string>
+    <string name="manual_mode">Manual mode</string>
+    <string name="telemetry">Telemetry</string>
+    <string name="no_telemetry">Waiting for telemetry…</string>
+    <string name="body_state">Synthetic state</string>
+    <string name="command_log">Last commands</string>
+</resources>

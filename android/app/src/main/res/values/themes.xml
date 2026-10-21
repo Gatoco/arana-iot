@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Arana" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#4DD0E1</item>
+        <item name="colorOnPrimary">#00363D</item>
+        <item name="colorSecondary">#FFB74D</item>
+        <item name="android:colorBackground">#0E1114</item>
+        <item name="colorSurface">#161A1E</item>
+        <item name="android:statusBarColor">#0E1114</item>
+        <item name="android:navigationBarColor">#0E1114</item>
+    </style>
+</resources>
