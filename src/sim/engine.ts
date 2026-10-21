@@ -16,6 +16,7 @@ import {
 } from "../protocol";
 import { clamp, solveLeg, LEG_GEOMETRY } from "./spiderModel";
 import { computeGait, type GaitInput } from "./gait";
+import { ARENA, headingVector, senseDistance } from "./world";
 import { LEGS, type LegId } from "../protocol";
 
 /** Seconds without operator commands before `manual` falls back to `auto`. */
@@ -36,16 +37,14 @@ export interface RobotState {
   phase: number;
   /** Ultrasonic reading in meters, null when no echo. */
   distance: number | null;
-  /** Simulated obstacle at distance `wallDistance` ahead along heading. */
-  wallDistance: number | null;
   targets: Record<LegId, { forward: number; height: number }>;
 }
 
 export interface WorldConfig {
   /** Half-size of the square arena in meters. */
   arena: number;
-  /** Optional wall distance ahead for the distance sensor demo. */
-  wall: number | null;
+  /** When false the ultrasonic sensor reports no echo. */
+  sensor: boolean;
 }
 
 export class TwinEngine {
@@ -61,11 +60,10 @@ export class TwinEngine {
     operatorIdle: 0,
     phase: 0,
     distance: null,
-    wallDistance: null,
     targets: {} as Record<LegId, { forward: number; height: number }>,
   };
 
-  private world: WorldConfig = { arena: 1.5, wall: 1.2 };
+  private world: WorldConfig = { arena: ARENA.size / 2, sensor: true };
 
   setWorld(world: Partial<WorldConfig>): void {
     this.world = { ...this.world, ...world };
@@ -115,10 +113,9 @@ export class TwinEngine {
     this.state.targets = out.targets;
 
     // Integrate pose.
-    const sin = Math.sin(this.state.yaw);
-    const cos = Math.cos(this.state.yaw);
-    this.state.x += sin * out.speed * dt;
-    this.state.z += cos * out.speed * dt;
+    const [hx, hz] = headingVector(this.state.yaw);
+    this.state.x += hx * out.speed * dt;
+    this.state.z += hz * out.speed * dt;
     this.state.yaw += out.yawRate * dt;
 
     // Keep inside the arena.
@@ -126,16 +123,7 @@ export class TwinEngine {
     this.state.x = clamp(this.state.x, -a, a);
     this.state.z = clamp(this.state.z, -a, a);
 
-    // Distance sensor: read the wall straight ahead along heading.
-    if (this.world.wall != null) {
-      const ahead =
-        Math.abs(Math.sin(this.state.yaw)) > 0.5
-          ? (a - Math.abs(this.state.x)) / Math.max(0.01, Math.abs(Math.sin(this.state.yaw)))
-          : (a - Math.abs(this.state.z)) / Math.max(0.01, Math.abs(Math.cos(this.state.yaw)));
-      this.state.distance = Math.min(this.world.wall, Math.max(0.02, ahead));
-    } else {
-      this.state.distance = null;
-    }
+    this.state.distance = this.world.sensor ? senseDistance(this.state) : null;
 
     this.state.phase = out.advance(dt);
   }

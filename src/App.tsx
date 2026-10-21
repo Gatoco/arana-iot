@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Viewport } from "./scene/Viewport";
+import { CAMERA_MODE, type CameraMode } from "./scene/SpiderView";
+import { Hud } from "./ui/Hud";
+import { cn } from "./lib/cn";
 import { Joystick } from "./ui/Joystick";
 import { GaitButtons, ServoBar, TelemetryPanel } from "./ui/TelemetryPanel";
 import { TwinRuntime } from "./runtime/TwinRuntime";
@@ -22,6 +25,7 @@ export default function App() {
   const runtime = runtimeRef.current;
 
   const snap = useTwin(runtime);
+  const [cameraMode, setCameraMode] = useState<CameraMode>(CAMERA_MODE.FOLLOW);
   const [link, setLink] = useState<LinkConfig>({
     kind: TRANSPORT_KIND.LOOPBACK,
     url: BROKER_DEFAULT,
@@ -46,10 +50,29 @@ export default function App() {
   return (
     <div className="flex h-full flex-col lg:flex-row">
       <main className="relative flex-1 min-h-[45vh]">
-        <Viewport runtime={runtime} />
-        <div className="absolute left-3 top-3 rounded bg-panel/80 px-3 py-2 backdrop-blur">
-          <div className="text-xs uppercase tracking-widest text-accent">Arana IoT</div>
-          <div className="text-[11px] text-slate-400">digital twin · {TOPIC.CMD.split("/")[0]}</div>
+        <Viewport runtime={runtime} cameraMode={cameraMode} />
+        {/* Drag strip for the frameless desktop window; inert in the browser. */}
+        <div className="absolute inset-x-0 top-0 h-8 [-webkit-app-region:drag]" />
+        <div className="absolute left-3 top-3 flex flex-col gap-2">
+          <div className="rounded bg-black/60 px-3 py-2 backdrop-blur">
+            <div className="text-xs uppercase tracking-widest text-accent">Arana IoT</div>
+            <div className="text-[11px] text-slate-400">digital twin · {TOPIC.CMD.split("/")[0]}</div>
+          </div>
+          <Hud telemetry={snap.telemetry} />
+        </div>
+        <div className="absolute right-3 top-3 flex gap-1 rounded bg-black/60 p-1 backdrop-blur [-webkit-app-region:no-drag]">
+          {[CAMERA_MODE.FOLLOW, CAMERA_MODE.ORBIT].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setCameraMode(mode)}
+              className={cn(
+                "min-h-11 min-w-16 rounded px-3 text-xs uppercase tracking-wider",
+                cameraMode === mode ? "bg-accent text-slate-900" : "text-slate-300",
+              )}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
       </main>
 

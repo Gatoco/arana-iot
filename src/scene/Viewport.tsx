@@ -1,19 +1,17 @@
 import { useEffect, useRef } from "react";
-import { SpiderView } from "./SpiderView";
+import { SpiderView, type CameraMode } from "./SpiderView";
 import type { TwinRuntime } from "../runtime/TwinRuntime";
-import { useTwin } from "../runtime/useTwin";
 
-export function Viewport({ runtime }: { runtime: TwinRuntime }) {
+export function Viewport({ runtime, cameraMode }: { runtime: TwinRuntime; cameraMode: CameraMode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef<SpiderView | null>(null);
-  const snapshot = useTwin(runtime);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const view = new SpiderView(canvas);
     viewRef.current = view;
-    const observer = runtime.subscribe(() => view.update(runtime.getSnapshot().state));
+    const unsubscribe = runtime.subscribe(() => view.update(runtime.getSnapshot().state));
     view.update(runtime.getSnapshot().state);
 
     let raf = 0;
@@ -25,16 +23,15 @@ export function Viewport({ runtime }: { runtime: TwinRuntime }) {
 
     return () => {
       cancelAnimationFrame(raf);
-      observer();
+      unsubscribe();
       view.dispose();
       viewRef.current = null;
     };
   }, [runtime]);
 
-  // Keep the view in sync with non-render state changes.
   useEffect(() => {
-    viewRef.current?.update(snapshot.state);
-  }, [snapshot.state]);
+    viewRef.current?.setCameraMode(cameraMode);
+  }, [cameraMode]);
 
-  return <canvas ref={canvasRef} className="h-full w-full block touch-none" />;
+  return <canvas ref={canvasRef} className="block h-full w-full touch-none" />;
 }

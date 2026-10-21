@@ -137,10 +137,6 @@ export class TwinRuntime {
     this.command({ kind: CMD_KIND.MODE, mode });
   }
 
-  setWorld(wall: number | null): void {
-    this.engine.setWorld({ wall });
-  }
-
   reconnect(kind: TransportKind, brokerUrl: string, auth?: TransportAuth): void {
     this.unsubTelemetry?.();
     this.transport.disconnect();
