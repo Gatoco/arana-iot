@@ -9,7 +9,10 @@
     "lint": "oxlint",
     "test": "vitest run",
     "preview": "vite preview",
-    "broker": "node scripts/broker.mjs"
+    "broker": "node scripts/broker.mjs",
+    "desktop": "node scripts/desktop.mjs",
+    "desktop:build": "tsc -b && DESKTOP=1 vite build",
+    "desktop:start": "electron ."
   },
   "dependencies": {
     "@types/three": "^0.186.0",
@@ -35,5 +38,6 @@
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.3",
     "ws": "^8.22.0"
-  }
+  },
+  "main": "electron/main.cjs"
 }
