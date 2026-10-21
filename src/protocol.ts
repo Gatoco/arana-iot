@@ -25,6 +25,7 @@ export const CMD_KIND = {
   STOP: "stop",
   GAIT: "gait",
   POSE: "pose",
+  MODE: "mode",
 } as const;
 
 export type CmdKind = (typeof CMD_KIND)[keyof typeof CMD_KIND];
@@ -57,7 +58,23 @@ export interface GaitCmd {
   gait: Gait;
 }
 
-export type Command = MoveCmd | StopCmd | GaitCmd;
+/**
+ * Who drives the body. `auto`: the brain (via `arana/brain/state`).
+ * `manual`: the operator; brain state is ignored.
+ */
+export const CONTROL_MODE = {
+  AUTO: "auto",
+  MANUAL: "manual",
+} as const;
+
+export type ControlMode = (typeof CONTROL_MODE)[keyof typeof CONTROL_MODE];
+
+export interface ModeCmd {
+  kind: typeof CMD_KIND.MODE;
+  mode: ControlMode;
+}
+
+export type Command = MoveCmd | StopCmd | GaitCmd | ModeCmd;
 
 /** Telemetry snapshot published by the body. */
 export interface Telemetry {
@@ -73,6 +90,8 @@ export interface Telemetry {
   distance: number | null;
   /** Current gait. */
   gait: Gait;
+  /** Current control mode. */
+  mode: ControlMode;
   /** 8 servo angles in degrees, order: FL_femur, FL_tibia, ... FR, RL, RR. */
   joints: number[];
 }

@@ -5,10 +5,21 @@
  * renderer subscribes to `getState()`. Same boundary the real ESP will have.
  */
 
-import { CMD_KIND, GAIT, type Command, type Telemetry, type Gait } from "../protocol";
+import {
+  CMD_KIND,
+  CONTROL_MODE,
+  GAIT,
+  type Command,
+  type ControlMode,
+  type Telemetry,
+  type Gait,
+} from "../protocol";
 import { clamp, solveLeg, LEG_GEOMETRY } from "./spiderModel";
 import { computeGait, type GaitInput } from "./gait";
 import { LEGS, type LegId } from "../protocol";
+
+/** Seconds without operator commands before `manual` falls back to `auto`. */
+export const OPERATOR_IDLE_TIMEOUT_S = 5;
 
 export interface RobotState {
   x: number;
@@ -18,6 +29,10 @@ export interface RobotState {
   forward: number;
   turn: number;
   gait: Gait;
+  /** Who drives the body: the brain (auto) or the operator (manual). */
+  mode: ControlMode;
+  /** Seconds since the last operator command. */
+  operatorIdle: number;
   phase: number;
   /** Ultrasonic reading in meters, null when no echo. */
   distance: number | null;
@@ -42,6 +57,8 @@ export class TwinEngine {
     forward: 0,
     turn: 0,
     gait: GAIT.REST,
+    mode: CONTROL_MODE.AUTO,
+    operatorIdle: 0,
     phase: 0,
     distance: null,
     wallDistance: null,
@@ -54,9 +71,15 @@ export class TwinEngine {
     this.world = { ...this.world, ...world };
   }
 
+  /** Apply an operator command. Every command restarts the idle timer. */
   apply(cmd: Command): void {
+    this.state.operatorIdle = 0;
     switch (cmd.kind) {
+      case CMD_KIND.MODE:
+        this.state.mode = cmd.mode;
+        break;
       case CMD_KIND.MOVE:
+        this.state.mode = CONTROL_MODE.MANUAL;
         this.state.forward = clamp(cmd.forward, -1, 1);
         this.state.turn = clamp(cmd.turn, -1, 1);
         if (this.state.gait === GAIT.REST) this.state.gait = GAIT.TETRAPOD;
@@ -73,6 +96,14 @@ export class TwinEngine {
   }
 
   step(dt: number): void {
+    this.state.operatorIdle += dt;
+    if (
+      this.state.mode === CONTROL_MODE.MANUAL &&
+      this.state.operatorIdle >= OPERATOR_IDLE_TIMEOUT_S
+    ) {
+      this.state.mode = CONTROL_MODE.AUTO;
+    }
+
     const input: GaitInput = {
       forward: this.state.forward,
       turn: this.state.turn,
@@ -130,6 +161,7 @@ export class TwinEngine {
       yaw: this.state.yaw,
       distance: this.state.distance,
       gait: this.state.gait,
+      mode: this.state.mode,
       joints: this.joints(),
     };
   }
