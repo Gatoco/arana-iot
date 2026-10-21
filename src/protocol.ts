@@ -74,7 +74,36 @@ export interface ModeCmd {
   mode: ControlMode;
 }
 
-export type Command = MoveCmd | StopCmd | GaitCmd | ModeCmd;
+/**
+ * Preset actions of the LAFVIN LA072, named exactly as the official firmware's
+ * `/api/v1/action` endpoint. Product labels: fighting = Fighting, standby = Standby,
+ * pushup = Push-Up, sleep = Sleep, lie = Lie Down, hello = Greet, dance3 = Leg Raise,
+ * dance2 = Swing, dance1 = Relax.
+ */
+export const POSE = {
+  FIGHTING: "fighting",
+  STANDBY: "standby",
+  PUSHUP: "pushup",
+  SLEEP: "sleep",
+  LIE: "lie",
+  HELLO: "hello",
+  DANCE3: "dance3",
+  DANCE2: "dance2",
+  DANCE1: "dance1",
+} as const;
+
+export type PoseName = (typeof POSE)[keyof typeof POSE];
+
+/**
+ * Run one preset action (additive extension, S20). Bodies that do not know `pose` must
+ * ignore it; any move / stop / gait command cancels a running action.
+ */
+export interface PoseCmd {
+  kind: typeof CMD_KIND.POSE;
+  pose: PoseName;
+}
+
+export type Command = MoveCmd | StopCmd | GaitCmd | ModeCmd | PoseCmd;
 
 /** Telemetry snapshot published by the body. */
 export interface Telemetry {
@@ -92,7 +121,12 @@ export interface Telemetry {
   gait: Gait;
   /** Current control mode. */
   mode: ControlMode;
-  /** 8 servo angles in degrees, order: FL_femur, FL_tibia, ... FR, RL, RR. */
+  /**
+   * 8 servo angles in degrees, order: FL_hip, FL_knee, FR_hip, FR_knee, RL_hip, RL_knee,
+   * RR_hip, RR_knee. hip 0 = leg perpendicular to the body (firmware zero pose), positive =
+   * foot toward the nose. knee 0 = tibia in line with the horizontal femur, positive = foot
+   * down. See docs/protocol.md for the mapping to firmware servo degrees.
+   */
   joints: number[];
 }
 

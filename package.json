@@ -12,7 +12,8 @@
     "broker": "node scripts/broker.mjs",
     "desktop": "node scripts/desktop.mjs",
     "desktop:build": "tsc -b && DESKTOP=1 vite build",
-    "desktop:start": "electron ."
+    "desktop:start": "electron .",
+    "desktop:shots": "node scripts/shots.mjs"
   },
   "dependencies": {
     "@types/three": "^0.186.0",

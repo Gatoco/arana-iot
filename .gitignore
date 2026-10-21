@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 dist-desktop
+
+# Official LAFVIN product images used only as local visual reference
+docs/reference/

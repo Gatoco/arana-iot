@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
+/* Instrument palette: dark neutral surfaces, one teal accent for active state. */
 @theme {
-  --color-body: #0f172a;
-  --color-panel: #1e293b;
-  --color-edge: #334155;
-  --color-accent: #22d3ee;
+  --color-bg: #05070a;
+  --color-panel: #0a0e13;
+  --color-raised: #0e141b;
+  --color-edge: #1b2632;
+  --color-bar: #070a0e;
+  --color-bar-edge: #141c25;
+  --color-ink: #dbe4ee;
+  --color-muted: #8494a6;
+  --color-accent: #2dd4bf;
   --color-warn: #f59e0b;
-  --color-danger: #ef4444;
-  --color-ok: #22c55e;
+  --color-danger: #f87171;
+  --color-ok: #34d399;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
 html,
@@ -18,8 +25,88 @@ body,
 }
 
 body {
-  background-color: var(--color-body);
-  color: #e2e8f0;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+button,
+input,
+select {
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* Slow link heartbeat; disabled by the reduced-motion rule above. */
+@keyframes link-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.link-pulse {
+  animation: link-pulse 2.4s ease-in-out infinite;
+}
+
+/* Native range input, instrument style. */
+input[type="range"] {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-edge);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  border: 2px solid var(--color-panel);
+}
+input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-edge);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  border: 2px solid var(--color-panel);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }

@@ -3,6 +3,7 @@
  * must also run standalone (no broker) with in-memory loopback.
  *
  * The future ESP kit plugs into the MQTT side; nothing else changes.
+ * QoS: every publish and subscribe uses the mqtt.js default, QoS 0 (see docs/protocol.md).
  */
 
 import mqtt, { type MqttClient } from "mqtt";
@@ -27,6 +28,8 @@ export type TransportKind = (typeof TRANSPORT_KIND)[keyof typeof TRANSPORT_KIND]
 export interface TransportStatus {
   kind: TransportKind;
   connected: boolean;
+  /** A connection attempt (or automatic reconnect) is in progress. */
+  connecting?: boolean;
   broker?: string;
   error?: string;
 }
@@ -36,6 +39,9 @@ export interface TransportAuth {
   username: string;
   password: string;
 }
+
+/** Seconds before a silent broker is reported as unreachable (reconnects keep going). */
+export const CONNECT_TIMEOUT_S = 10;
 
 /** In-memory bus: same semantics as MQTT, zero infrastructure. */
 export class LoopbackTransport implements Transport {
@@ -79,6 +85,22 @@ export class LoopbackTransport implements Transport {
   }
 }
 
+/** Accept `host:port`, `ws://…`, `wss://…`, `mqtt://…`; default scheme ws:// and path /mqtt. */
+export function normalizeBrokerUrl(input: string): string {
+  const raw = input.trim();
+  if (!raw) return raw;
+  const withScheme = /^[a-z]+:\/\//i.test(raw) ? raw : `ws://${raw}`;
+  try {
+    const url = new URL(withScheme);
+    if ((url.protocol === "ws:" || url.protocol === "wss:") && (url.pathname === "" || url.pathname === "/")) {
+      url.pathname = "/mqtt";
+    }
+    return url.toString();
+  } catch {
+    return withScheme;
+  }
+}
+
 export class MqttTransport implements Transport {
   private client: MqttClient | null = null;
   private handlers = new Map<string, Set<(payload: unknown) => void>>();
@@ -86,24 +108,33 @@ export class MqttTransport implements Transport {
   private current: TransportStatus;
   private brokerUrl: string;
   private auth?: TransportAuth;
+  private timeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(brokerUrl: string, auth?: TransportAuth) {
-    this.brokerUrl = brokerUrl;
+    this.brokerUrl = normalizeBrokerUrl(brokerUrl);
     this.auth = auth;
-    this.current = { kind: TRANSPORT_KIND.MQTT, connected: false, broker: brokerUrl };
+    this.current = { kind: TRANSPORT_KIND.MQTT, connected: false, broker: this.brokerUrl };
   }
 
   connect(): void {
     if (this.client) return;
+    this.update({ connecting: true, error: undefined });
+    this.armTimeout();
     try {
       this.client = mqtt.connect(this.brokerUrl, {
         reconnectPeriod: 3000,
-        username: this.auth?.username,
-        password: this.auth?.password,
+        connectTimeout: CONNECT_TIMEOUT_S * 1000,
+        username: this.auth?.username || undefined,
+        password: this.auth?.password || undefined,
       });
       this.client.on("connect", () => {
-        this.update({ connected: true, error: undefined });
+        this.clearTimeout();
+        this.update({ connected: true, connecting: false, error: undefined });
         for (const topic of this.handlers.keys()) this.client?.subscribe(topic);
+      });
+      this.client.on("reconnect", () => {
+        this.update({ connecting: true });
+        this.armTimeout();
       });
       this.client.on("close", () => this.update({ connected: false }));
       this.client.on("error", (err) => this.update({ connected: false, error: err.message }));
@@ -119,12 +150,14 @@ export class MqttTransport implements Transport {
         for (const h of set) h(parsed);
       });
     } catch (err) {
-      this.update({ connected: false, error: err instanceof Error ? err.message : String(err) });
+      this.clearTimeout();
+      this.update({ connected: false, connecting: false, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
   publish<T>(topic: Topic, payload: T): void {
-    this.client?.publish(topic, JSON.stringify(payload));
+    if (!this.client?.connected) return;
+    this.client.publish(topic, JSON.stringify(payload));
   }
 
   subscribe(topic: Topic, handler: (payload: unknown) => void): () => void {
@@ -143,15 +176,30 @@ export class MqttTransport implements Transport {
   }
 
   disconnect(): void {
+    this.clearTimeout();
     this.client?.end(true);
     this.client = null;
-    this.update({ connected: false });
+    this.update({ connected: false, connecting: false });
   }
 
   onStatus(cb: (status: TransportStatus) => void): () => void {
     this.statusCbs.add(cb);
     cb(this.current);
     return () => this.statusCbs.delete(cb);
+  }
+
+  private armTimeout(): void {
+    this.clearTimeout();
+    this.timeout = setTimeout(() => {
+      if (!this.current.connected) {
+        this.update({ error: `No answer from ${this.brokerUrl} after ${CONNECT_TIMEOUT_S} s; retrying` });
+      }
+    }, CONNECT_TIMEOUT_S * 1000);
+  }
+
+  private clearTimeout(): void {
+    if (this.timeout) clearTimeout(this.timeout);
+    this.timeout = null;
   }
 
   private update(patch: Partial<TransportStatus>): void {

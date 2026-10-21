@@ -1,38 +1,120 @@
 # arana-iot
 
-Digital twin + web controller for the TI3042 IoT spider robot.
+Digital twin, test bench and controller for the **LAFVIN LA072** quadruped spider robot
+(ESP8266, 8 × MG90S, HC-SR04, IR receiver) used in the TI3042 IoT course.
 
-The twin (Three.js) speaks the **same MQTT protocol** the physical ESP kit
-will speak, so swapping the simulated body for the real one changes only
-the transport target — not the code.
+The twin speaks the **same MQTT protocol** the physical kit will speak, so swapping the
+simulated body for the real one changes only the transport target, not the code. The physical
+robot is not assembled yet: everything you see is the twin.
 
-## Stack
+![Hero view](docs/screenshots/hero.png)
 
-- React 19 + TypeScript + Vite
-- Three.js (3D view)
-- Tailwind CSS 4
-- mqtt.js (broker transport) with an in-memory loopback fallback
-- PWA (installable on Android)
+## What it is
 
-## Scripts
+- **Hardware-faithful model.** Two MG90S per leg (hip yaw + knee pitch) with a passive
+  horizontal femur, built from the kit's photos, manual and official firmware
+  (`docs/reference/`, `odd/tasks/desktop-experience.md` has the evidence log).
+- **One kinematic truth.** `src/sim/legKinematics.ts` is used by the engine and the renderer;
+  a test proves the rendered foot tips equal the solver's feet.
+- **Physical walking without a physics engine.** The body rests on the feet that touch the
+  floor and planted feet do not slip; forward motion, turning and the "body turn" of the
+  Fighting action all emerge from the legs.
+- **The nine preset actions** (Fighting, Standby, Push-Up, Sleep, Lie Down, Greet, Leg Raise,
+  Swing, Relax) are the official firmware keyframe tables, played the way the firmware plays
+  them.
+- **Test bench.** 12 × 12 m arena, 10 cm / 1 m grid, 1 m calibration mat, distance markers to
+  4 m, box / cylinder / low wall, collisions, HC-SR04 cone and hit point.
+- **Instrument UI.** Link, drive, gait & actions, servo test (with the firmware GPIO and raw
+  servo degree per joint), telemetry, packet log.
+
+## Run
 
 ```bash
-npm run dev      # dev server
-npm run build    # type-check + production build (PWA)
-npm test         # sim self-checks (gait + IK)
-npm run lint     # oxlint
+npm ci
+npm run dev             # browser, http://localhost:5173 (the PWA build is the same app)
+npm run desktop         # Vite + Electron (frameless window, custom titlebar)
+npm run desktop:build   # production renderer in dist-desktop/ (works offline)
+npm run desktop:start   # run Electron on dist-desktop/
+npm run desktop:shots   # writes docs/screenshots/{hero,front,top,side}.png (xvfb-run if headless)
+npm run broker          # local MQTT broker (aedes): TCP 1883, WebSocket 9001
+npm test                # Vitest (sim, kinematics, actions, protocol, Electron helpers)
+npm run lint            # oxlint
 ```
+
+Real-broker check (skipped by default; credentials only from the environment):
+
+```bash
+ARANA_BROKER_URL=ws://localhost:9001/mqtt ARANA_BROKER_USER=... ARANA_BROKER_PASS=... \
+  npx vitest run src/net/mqtt.integration.test.ts
+```
+
+Extra screenshot variables: `ARANA_SHOTS=<dir>` output folder, `ARANA_SHOTS_SIZE=960x640`
+window size, `ARANA_SHOTS_EXTRA=1` also captures walking, Greet and Lie Down.
+
+## Controls
+
+| Input | Action |
+| --- | --- |
+| Joystick / W A S D | drive (up = forward, right = turn right) |
+| Throttle slider, Shift | scale the command; Shift holds 100 % |
+| Space / STOP | stop and cancel any action |
+| 1 / 2 / 3 | tetrapod / wave / rest |
+| F / O | follow / orbit camera (Hero, Front, Top, Side presets in the toolbar) |
+| R | reset pose and position |
+| ? | keyboard help |
+
+Driving switches the body to `manual`; 5 s without operator commands returns it to `auto`.
+The servo test mode drives the eight joints from sliders, locally only: nothing is sent to
+hardware.
 
 ## Architecture
 
 ```
-src/protocol.ts        message contract shared by twin / brain / ESP
-src/sim/               headless engine (no Three.js): model, gait, engine
-src/net/transport.ts   Loopback | MQTT (same interface)
-src/runtime/           binds engine + transport, exposes a React store
-src/scene/             Three.js view of the spider
-src/ui/                joystick, telemetry, servo bars
+src/protocol.ts          message contract shared by twin / brain / ESP / Android
+src/sim/spiderModel.ts   SPIDER dimensions, leg configs, neutral pose (single source)
+src/sim/legKinematics.ts 2-DOF leg FK / IK
+src/sim/servoMap.ts      twin joints <-> official firmware servo degrees
+src/sim/gait.ts          tetrapod / wave planner (body frame)
+src/sim/bodyPose.ts      support fit + planted-feet planar fit
+src/sim/actions.ts       the nine firmware actions and their player
+src/sim/world.ts         colliders, collision, sonar ray
+src/sim/engine.ts        headless engine: commands -> joints -> body pose
+src/net/transport.ts     Loopback | MQTT (same interface)
+src/runtime/             engine + transport at 30 Hz, React store at 10 Hz, packet log
+src/scene/               Three.js: spider mesh, arena, view (interpolated, one render loop)
+src/ui/                  titlebar, panels, joystick, status bar
+electron/                main (IPC, window state, CSP), sandboxed preload, window helpers
 ```
 
-The engine owns all state. React only subscribes and draws. The future ESP
-replaces the "body" on the other end of the broker.
+The engine owns all state. React only subscribes and draws; the 3D view reads the engine per
+tick and never re-renders React per frame.
+
+## Protocol
+
+Topics `arana/cmd`, `arana/telemetry`, `arana/brain/state`, `arana/brain/stimulus`; JSON, QoS 0.
+Commands: `move`, `stop`, `gait`, `mode`, `pose`. Telemetry carries pose, sonar distance, gait,
+mode and 8 joint angles (FL, FR, RL, RR × hip, knee). Full contract and firmware mapping:
+[`docs/protocol.md`](docs/protocol.md).
+
+## Remote control
+
+The broker for the phone app and the desktop twin is Mosquitto on the T420
+(LAN `ws://192.168.1.79:9001/mqtt`, Tailscale `ws://100.66.97.18:9001/mqtt`). Exposing it
+through the existing Cloudflare tunnel and the Android handoff are described in
+[`docs/remote-control.md`](docs/remote-control.md).
+
+## Screenshots
+
+| Hero | Front | Top | Side |
+| --- | --- | --- | --- |
+| ![](docs/screenshots/hero.png) | ![](docs/screenshots/front.png) | ![](docs/screenshots/top.png) | ![](docs/screenshots/side.png) |
+
+## Limitations
+
+- The physical kit is not assembled; link lengths are derived from photos (no official
+  dimensions exist) and per-robot servo trim (`Servo_Offset`) is not modeled.
+- 2-DOF legs cannot choose foot height: swing feet land within ~2–3 mm of the floor and the
+  body rocks a few degrees while walking. That is the kit's geometry, not a bug.
+- The brain bridge is an extension point only: in `auto` with no brain the body stays idle.
+- No installer: `dist-desktop/` + `npm run desktop:start` is the desktop deliverable.
+- The ESP firmware does not speak MQTT yet; `pose` is an additive command it may ignore.
