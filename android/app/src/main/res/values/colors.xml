@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#0E1114</color>
+    <color name="surface">#161A1E</color>
+    <color name="surface_elevated">#1C2228</color>
+    <color name="primary">#4DD0E1</color>
+    <color name="on_primary">#00363D</color>
+    <color name="warning">#FFB74D</color>
+    <color name="danger">#EF5350</color>
+    <color name="success">#66BB6A</color>
+    <color name="text">#E6EDF3</color>
+    <color name="muted">#8B98A5</color>
+    <color name="border">#2A333C</color>
+    <color name="trail">#2E7E88</color>
+</resources>

@@ -1,46 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Arana Controller</string>
+    <string name="app_name">Arana Command Center</string>
 
-    <string name="login_title">Arana login</string>
+    <!-- DEMO DEFAULTS: public classroom test credentials, not secrets. Rotate before any real deployment. -->
+    <string name="demo_server_url" translatable="false">wss://mqtt.t420.dev/mqtt</string>
+    <string name="demo_username" translatable="false">conectoma</string>
+    <string name="demo_password" translatable="false">cont1234</string>
+
+    <!-- Login -->
+    <string name="brand_name">ARANA</string>
+    <string name="brand_subtitle">Command Center</string>
+    <string name="login_subtitle">T420 broker · Cloudflare WSS</string>
+    <string name="server_url">Server URL</string>
+    <string name="server_url_helper">MQTT WebSocket endpoint</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
-    <string name="sign_in">Sign in</string>
-    <string name="create_account">Create account</string>
-    <string name="error_empty_credentials">Username and password are required</string>
-    <string name="error_bad_credentials">Invalid username or password</string>
-    <string name="error_user_exists">That username already exists</string>
-    <string name="account_created">Account created, you can sign in now</string>
+    <string name="remember">Remember credentials</string>
+    <string name="remember_helper">Encrypted on this device</string>
+    <string name="connect">Connect</string>
+    <string name="connecting">Connecting…</string>
+    <string name="demo_warning">Test credentials for the classroom demo. Do not reuse.</string>
+    <string name="err_url_empty">Enter the server URL</string>
+    <string name="err_url_invalid">Invalid server URL. Use tcp://, ssl://, ws:// or wss:// with a host.</string>
+    <string name="err_username_empty">Enter the username</string>
+    <string name="err_password_empty">Enter the password</string>
+    <string name="err_bad_credentials">Invalid username or password</string>
+    <string name="err_unreachable">Cannot reach the server</string>
+    <string name="err_tls">TLS error: certificate or handshake failed</string>
+    <string name="err_refused">Connection refused</string>
+    <string name="err_invalid_url">Invalid server URL</string>
+    <string name="err_other">Connection failed: %1$s</string>
 
-    <string name="connection_title">Broker connection</string>
-    <string name="host">Host</string>
-    <string name="port">Port</string>
-    <string name="broker_username">Broker username (optional)</string>
-    <string name="broker_password">Broker password (optional)</string>
-    <string name="open_control">Control</string>
-    <string name="open_body_mode">Body Mode</string>
-    <string name="error_host_port">Enter a host and a port between 1 and 65535</string>
+    <!-- Main -->
+    <string name="tab_console">Console</string>
+    <string name="tab_actions">Actions</string>
+    <string name="tab_servos">Servos</string>
+    <string name="menu_connection">Connection</string>
+    <string name="menu_body_mode">Body Mode (demo)</string>
+    <string name="menu_logout">Logout</string>
+    <string name="mode_none">--</string>
+    <string name="mode_auto">AUTO</string>
+    <string name="mode_manual">MANUAL</string>
+    <string name="cd_connection_dot">Broker connection: %1$s</string>
+    <string name="banner_disconnected">DISCONNECTED — controls disabled. Use Logout to sign in again.</string>
+    <string name="banner_reconnecting">RECONNECTING — controls disabled</string>
+    <string name="banner_no_telemetry">NO TELEMETRY — connect the Electron body to the same broker.</string>
 
-    <string name="control_title">Control</string>
-    <string name="body_title">Body Mode</string>
-    <string name="status_connecting">Connecting to %1$s…</string>
-    <string name="status_connected">Connected to %1$s</string>
-    <string name="status_disconnected">Disconnected</string>
-    <string name="status_error">Connection error: %1$s</string>
+    <!-- Link state labels -->
+    <string name="state_connected">Connected</string>
+    <string name="state_connecting">Connecting</string>
+    <string name="state_reconnecting">Reconnecting</string>
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_failed">Failed</string>
 
-    <string name="forward">Forward</string>
-    <string name="back">Back</string>
-    <string name="left">Left</string>
-    <string name="right">Right</string>
+    <!-- Connection dialog -->
+    <string name="conn_title">Connection</string>
+    <string name="conn_state">State</string>
+    <string name="conn_server">Server</string>
+    <string name="conn_user">Username</string>
+    <string name="conn_telemetry">Telemetry</string>
+    <string name="conn_no_telemetry">no telemetry</string>
+    <string name="conn_last_packet">last packet %1$.1f s ago</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="logout">Logout</string>
+    <string name="body_mode">Body Mode (demo)</string>
+    <string name="close">Close</string>
+    <string name="body_warning_title">Body Mode</string>
+    <string name="body_warning">Only one body should publish telemetry on the broker. Starting Body Mode while the Electron twin is connected mixes two bodies on arana/telemetry. Continue?</string>
+    <string name="continue_action">Continue</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Console -->
+    <string name="map_heading_up">HEADING UP · 4 m</string>
+    <string name="map_no_telemetry">NO TELEMETRY</string>
+    <string name="cd_map">Tactical map, heading up</string>
+    <string name="cd_joystick">Drive joystick. Up is forward, right turns right.</string>
+    <string name="cd_stop">Stop</string>
     <string name="stop">STOP</string>
-    <string name="gait">Gait</string>
-    <string name="tetrapod">Tetrapod</string>
-    <string name="wave">Wave</string>
-    <string name="rest">Rest</string>
-    <string name="speed">Speed</string>
-    <string name="manual_mode">Manual mode</string>
-    <string name="telemetry">Telemetry</string>
-    <string name="no_telemetry">Waiting for telemetry…</string>
+    <string name="throttle">Throttle</string>
+    <string name="gait_tetrapod">TETRAPOD</string>
+    <string name="gait_wave">WAVE</string>
+    <string name="gait_rest">REST</string>
+    <string name="manual">Manual</string>
+    <string name="drive_disabled">Controls disabled: not connected to the broker</string>
+    <string name="drive_unconfirmed">No body telemetry: commands are unconfirmed</string>
+    <string name="stat_pose">Pose X / Z</string>
+    <string name="stat_heading">Heading</string>
+    <string name="stat_distance">Distance</string>
+    <string name="stat_gait">Gait</string>
+    <string name="stat_mode">Mode</string>
+    <string name="stat_link">Link</string>
+    <string name="stat_age">Telemetry age</string>
+    <string name="no_echo">no echo</string>
+    <string name="packet_log">Packet log</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="clear">Clear</string>
+
+    <!-- Actions -->
+    <string name="actions_note">Poses are firmware actions; the physical robot may not support all of them yet.</string>
+    <string name="sent_pose">Sent %1$s</string>
+    <string name="sent_pose_unconfirmed">Sent %1$s (unconfirmed)</string>
+    <string name="not_connected">Not connected</string>
+
+    <!-- Servos -->
+    <string name="servos_note">Read-only values from telemetry joints. The firmware has no per-servo command over MQTT.</string>
+    <string name="channel_map">Channel map</string>
+    <string name="channel_map_title">Firmware channel map</string>
+    <string name="channel_map_body">G14  FR knee  135 −\nG12  FR hip    45 +\nG13  RR hip   135 +\nG15  RR knee   45 +\nG16  FL knee   45 +\nG5   FL hip   135 −\nG4   RL hip    45 −\nG2   RL knee  135 −\n\nraw = zero + sign · angle (degrees)</string>
+    <string name="no_value">--</string>
+
+    <!-- Body mode -->
+    <string name="body_banner">BODY MODE — this phone is the body</string>
     <string name="body_state">Synthetic state</string>
     <string name="command_log">Last commands</string>
+    <string name="body_pose_note">action %1$s (joints held at neutral; firmware keyframes are not simulated)</string>
 </resources>

@@ -34,6 +34,10 @@ class BodySim {
     /** Gait cycle phase in turns, 0..1. */
     var phase = 0.0
         private set
+    /** Last firmware action received. Only STANDBY has simulated joints; see [updateJoints]. */
+    var pose: Pose? = null
+        private set
+    /** FL_hip, FL_knee, FR_hip, FR_knee, RL_hip, RL_knee, RR_hip, RR_knee in degrees. */
     val joints = DoubleArray(SERVO_COUNT)
 
     init {
@@ -44,18 +48,30 @@ class BodySim {
         operatorIdle = 0.0
         when (cmd) {
             is Command.Mode -> mode = cmd.mode
+            is Command.Pose -> {
+                // Like the twin, an action stops the walk and holds its pose.
+                forward = 0.0
+                turn = 0.0
+                gait = Gait.REST
+                pose = cmd.pose
+            }
             is Command.Move -> {
+                pose = null
                 mode = ControlMode.MANUAL
                 forward = cmd.forward.coerceIn(-1.0, 1.0)
                 turn = cmd.turn.coerceIn(-1.0, 1.0)
                 if (gait == Gait.REST) gait = Gait.TETRAPOD
             }
             Command.Stop -> {
+                pose = null
                 forward = 0.0
                 turn = 0.0
                 gait = Gait.REST
             }
-            is Command.Gait -> gait = cmd.gait
+            is Command.Gait -> {
+                pose = null
+                gait = cmd.gait
+            }
         }
     }
 
@@ -94,10 +110,12 @@ class BodySim {
             else -> TETRAPOD_OFFSETS
         }
         val walking = gait != Gait.REST && (forward != 0.0 || turn != 0.0)
+        // Firmware Servo_Prg_1 standby decodes to hips +-45 and knees 75; no other keyframes are simulated.
+        val knee = if (pose == Pose.STANDBY) STANDBY_KNEE else NEUTRAL_KNEE
         for (leg in 0 until 4) {
             val s = sin(2 * PI * (phase + offsets[leg]))
-            joints[leg * 2] = if (walking) FEMUR_SWING * s else 0.0
-            joints[leg * 2 + 1] = TIBIA_REST + if (walking) TIBIA_LIFT * max(0.0, s) else 0.0
+            joints[leg * 2] = HIP_NEUTRAL[leg] + if (walking) HIP_SWING * s else 0.0
+            joints[leg * 2 + 1] = knee + if (walking) KNEE_LIFT * max(0.0, s) else 0.0
         }
     }
 
@@ -106,9 +124,12 @@ class BodySim {
         const val TETRAPOD_SPEED = 0.17
         const val WAVE_SPEED = 0.083
         const val YAW_RATE = 1.2
-        private const val FEMUR_SWING = 20.0
-        private const val TIBIA_REST = -30.0
-        private const val TIBIA_LIFT = 15.0
+        private const val HIP_SWING = 15.0
+        private const val KNEE_LIFT = 20.0
+        private const val NEUTRAL_KNEE = 65.0
+        private const val STANDBY_KNEE = 75.0
+        /** Neutral stance hips in leg order FL, FR, RL, RR. */
+        private val HIP_NEUTRAL = doubleArrayOf(45.0, 45.0, -45.0, -45.0)
         /** Leg order FL, FR, RL, RR (protocol order). */
         private val TETRAPOD_OFFSETS = doubleArrayOf(0.0, 0.5, 0.5, 0.0)
         private val WAVE_OFFSETS = doubleArrayOf(0.0, 0.5, 0.75, 0.25)

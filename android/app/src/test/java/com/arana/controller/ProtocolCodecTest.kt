@@ -40,6 +40,7 @@ class ProtocolCodecTest {
             Command.Stop,
             Command.Gait(Gait.TETRAPOD),
             Command.Mode(ControlMode.AUTO),
+            Command.Pose(Pose.HELLO),
         )
         for (c in cmds) assertEquals(c, ProtocolCodec.decodeCommand(ProtocolCodec.encodeCommand(c)))
     }
@@ -82,5 +83,61 @@ class ProtocolCodecTest {
     @Test
     fun rejectsInvalidTelemetry() {
         assertNull(ProtocolCodec.decodeTelemetry("{}"))
+    }
+
+    @Test
+    fun encodesPoseWithExactWireShape() {
+        val o = JSONObject(ProtocolCodec.encodeCommand(Command.Pose(Pose.HELLO)))
+        assertEquals("pose", o.getString("kind"))
+        assertEquals("hello", o.getString("pose"))
+        assertEquals(2, o.length())
+    }
+
+    @Test
+    fun poseWireNamesMatchProtocolOrder() {
+        assertEquals(
+            listOf("fighting", "standby", "pushup", "sleep", "lie", "hello", "dance3", "dance2", "dance1"),
+            Pose.entries.map { it.wire },
+        )
+    }
+
+    @Test
+    fun unknownPoseAndKindAreIgnored() {
+        assertNull(ProtocolCodec.decodeCommand("""{"kind":"pose","pose":"moonwalk"}"""))
+        assertNull(ProtocolCodec.decodeCommand("""{"kind":"teleport"}"""))
+    }
+
+    @Test
+    fun decodeIgnoresUnknownFields() {
+        val c = ProtocolCodec.decodeCommand("""{"kind":"stop","extra":1}""")
+        assertEquals(Command.Stop, c)
+    }
+
+    @Test
+    fun rejectsWrongJointsLength() {
+        val short = """{"t":1,"x":0,"y":0,"z":0,"yaw":0,"distance":null,"gait":"rest","mode":"auto","joints":[1,2,3]}"""
+        val long = """{"t":1,"x":0,"y":0,"z":0,"yaw":0,"distance":null,"gait":"rest","mode":"auto","joints":[1,2,3,4,5,6,7,8,9]}"""
+        assertNull(ProtocolCodec.decodeTelemetry(short))
+        assertNull(ProtocolCodec.decodeTelemetry(long))
+    }
+
+    @Test
+    fun rejectsNonFiniteJoints() {
+        val nan = """{"t":1,"x":0,"y":0,"z":0,"yaw":0,"distance":null,"gait":"rest","mode":"auto","joints":[1,2,3,4,5,6,7,"NaN"]}"""
+        val inf = """{"t":1,"x":0,"y":0,"z":0,"yaw":0,"distance":null,"gait":"rest","mode":"auto","joints":[1,2,3,4,5,6,7,1e999]}"""
+        assertNull(ProtocolCodec.decodeTelemetry(nan))
+        assertNull(ProtocolCodec.decodeTelemetry(inf))
+    }
+
+    @Test
+    fun rejectsNonFinitePose() {
+        val bad = """{"t":1,"x":"NaN","y":0,"z":0,"yaw":0,"distance":null,"gait":"rest","mode":"auto","joints":[1,2,3,4,5,6,7,8]}"""
+        assertNull(ProtocolCodec.decodeTelemetry(bad))
+    }
+
+    @Test
+    fun decodesNullDistanceAsNoEcho() {
+        val json = """{"t":1,"x":0,"y":0,"z":0,"yaw":0,"distance":null,"gait":"tetrapod","mode":"auto","joints":[45,65,45,65,45,65,45,65]}"""
+        assertNull(ProtocolCodec.decodeTelemetry(json)!!.distance)
     }
 }

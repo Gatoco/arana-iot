@@ -1,12 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Arana" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="colorPrimary">#4DD0E1</item>
-        <item name="colorOnPrimary">#00363D</item>
-        <item name="colorSecondary">#FFB74D</item>
-        <item name="android:colorBackground">#0E1114</item>
-        <item name="colorSurface">#161A1E</item>
-        <item name="android:statusBarColor">#0E1114</item>
-        <item name="android:navigationBarColor">#0E1114</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/warning</item>
+        <item name="colorError">@color/danger</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="colorOutline">@color/border</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/muted</item>
+        <item name="materialButtonStyle">@style/Widget.Arana.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.Arana.Button.Outlined</item>
+    </style>
+
+    <!-- 8 dp corners instead of the Material 3 pill. -->
+    <style name="Widget.Arana.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">8dp</item>
+    </style>
+    <style name="Widget.Arana.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <style name="Arana.Label" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textColor">@color/muted</item>
+    </style>
+
+    <style name="Arana.Mono" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textColor">@color/text</item>
+    </style>
+
+    <style name="Arana.Panel" parent="">
+        <item name="android:background">@drawable/bg_panel</item>
+        <item name="android:padding">12dp</item>
     </style>
 </resources>

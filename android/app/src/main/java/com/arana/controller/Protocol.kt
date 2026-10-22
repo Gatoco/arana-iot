@@ -37,6 +37,23 @@ enum class Gait(val wire: String) {
     }
 }
 
+/** Firmware preset actions, in protocol order. [label] is the product label. */
+enum class Pose(val wire: String, val label: String) {
+    FIGHTING("fighting", "Fighting"),
+    STANDBY("standby", "Standby"),
+    PUSHUP("pushup", "Push-Up"),
+    SLEEP("sleep", "Sleep"),
+    LIE("lie", "Lie Down"),
+    HELLO("hello", "Greet"),
+    DANCE3("dance3", "Leg Raise"),
+    DANCE2("dance2", "Swing"),
+    DANCE1("dance1", "Relax");
+
+    companion object {
+        fun fromWire(value: String): Pose? = entries.firstOrNull { it.wire == value }
+    }
+}
+
 /** Who drives the body: the brain (`auto`) or the operator (`manual`). */
 enum class ControlMode(val wire: String) {
     AUTO("auto"),
@@ -54,6 +71,7 @@ sealed class Command {
     data object Stop : Command()
     data class Gait(val gait: com.arana.controller.Gait) : Command()
     data class Mode(val mode: ControlMode) : Command()
+    data class Pose(val pose: com.arana.controller.Pose) : Command()
 }
 
 /** Telemetry snapshot published by the body on [Topic.TELEMETRY]. */
@@ -70,7 +88,7 @@ data class Telemetry(
     val distance: Double?,
     val gait: Gait,
     val mode: ControlMode,
-    /** 8 servo angles in degrees: FL_femur, FL_tibia, FR, RL, RR. */
+    /** 8 angles in degrees: FL_hip, FL_knee, FR_hip, FR_knee, RL_hip, RL_knee, RR_hip, RR_knee. */
     val joints: List<Double>,
 )
 
@@ -95,6 +113,10 @@ object ProtocolCodec {
                 o.put("kind", CmdKind.MODE)
                 o.put("mode", cmd.mode.wire)
             }
+            is Command.Pose -> {
+                o.put("kind", CmdKind.POSE)
+                o.put("pose", cmd.pose.wire)
+            }
         }
         return o.toString()
     }
@@ -110,6 +132,7 @@ object ProtocolCodec {
             CmdKind.STOP -> Command.Stop
             CmdKind.GAIT -> Gait.fromWire(o.getString("gait"))?.let { Command.Gait(it) }
             CmdKind.MODE -> ControlMode.fromWire(o.getString("mode"))?.let { Command.Mode(it) }
+            CmdKind.POSE -> Pose.fromWire(o.getString("pose"))?.let { Command.Pose(it) }
             else -> null
         }
     } catch (_: JSONException) {
@@ -137,21 +160,17 @@ object ProtocolCodec {
         val gait = Gait.fromWire(o.getString("gait"))
         val mode = ControlMode.fromWire(o.getString("mode"))
         val arr = o.getJSONArray("joints")
-        if (gait == null || mode == null) {
-            null
-        } else {
-            Telemetry(
-                t = o.getLong("t"),
-                x = o.getDouble("x"),
-                y = o.getDouble("y"),
-                z = o.getDouble("z"),
-                yaw = o.getDouble("yaw"),
-                distance = if (o.isNull("distance")) null else o.getDouble("distance"),
-                gait = gait,
-                mode = mode,
-                joints = List(arr.length()) { arr.getDouble(it) },
-            )
-        }
+        val joints = if (arr.length() == SERVO_COUNT) List(SERVO_COUNT) { arr.getDouble(it) } else null
+        val t = o.getLong("t")
+        val x = o.getDouble("x")
+        val y = o.getDouble("y")
+        val z = o.getDouble("z")
+        val yaw = o.getDouble("yaw")
+        val distance = if (o.isNull("distance")) null else o.getDouble("distance")
+        val finite = x.isFinite() && y.isFinite() && z.isFinite() && yaw.isFinite() &&
+            (distance == null || distance.isFinite()) && joints != null && joints.all { it.isFinite() }
+        if (gait == null || mode == null || !finite) null
+        else Telemetry(t, x, y, z, yaw, distance, gait, mode, joints!!)
     } catch (_: JSONException) {
         null
     }

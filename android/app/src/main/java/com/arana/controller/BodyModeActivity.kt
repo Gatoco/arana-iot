@@ -1,104 +1,86 @@
 package com.arana.controller
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.snackbar.Snackbar
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.arana.controller.databinding.ActivityBodyModeBinding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Simulated robot body: answers `arana/cmd` and publishes telemetry at 10 Hz. */
-class BodyModeActivity : AppCompatActivity(), MqttLink.Listener {
-    private lateinit var link: MqttLink
-    private lateinit var status: TextView
-    private lateinit var stateView: TextView
-    private lateinit var logView: TextView
-
+/**
+ * Optional demo body: this phone answers `arana/cmd` and publishes telemetry at 10 Hz on the
+ * app-scoped broker session. Only one body should publish on the broker at a time.
+ */
+class BodyModeActivity : AppCompatActivity() {
+    private lateinit var b: ActivityBodyModeBinding
+    private val link get() = (application as AranaApp).container.link
     private val sim = BodySim()
     private val log = ArrayDeque<String>()
-    private val main = Handler(Looper.getMainLooper())
     private val clock = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-    private var lastTick = 0L
-
-    private val tick = object : Runnable {
-        override fun run() {
-            val now = SystemClock.elapsedRealtime()
-            sim.step((now - lastTick) / 1000.0)
-            lastTick = now
-            if (link.isConnected) {
-                link.publish(Topic.TELEMETRY, ProtocolCodec.encodeTelemetry(sim.telemetry(System.currentTimeMillis())))
-            }
-            renderState()
-            main.postDelayed(this, TICK_MS)
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_body)
-        status = findViewById(R.id.status)
-        stateView = findViewById(R.id.state)
-        logView = findViewById(R.id.log)
+        if (link.currentState() !is LinkState.Connected) {
+            finish()
+            return
+        }
+        b = ActivityBodyModeBinding.inflate(layoutInflater)
+        setContentView(b.root)
+        link.subscribeCommands()
 
-        val config = ConnectionActivity.brokerConfig(intent)
-        status.text = getString(R.string.status_connecting, config.uri)
-        link = MqttLink(this)
-        link.connect(config, listOf(Topic.CMD))
-        renderState()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { link.commands.collect(::onCommand) }
+                launch { link.state.collect { b.status.text = UiFormat.stateLabel(this@BodyModeActivity, it) } }
+                launch { tickLoop() }
+            }
+        }
     }
 
-    override fun onStart() {
-        super.onStart()
-        lastTick = SystemClock.elapsedRealtime()
-        main.post(tick)
+    private suspend fun tickLoop() {
+        var last = SystemClock.elapsedRealtime()
+        while (true) {
+            val now = SystemClock.elapsedRealtime()
+            sim.step((now - last) / 1000.0)
+            last = now
+            link.publishTelemetry(ProtocolCodec.encodeTelemetry(sim.telemetry(System.currentTimeMillis())))
+            renderState()
+            delay(TICK_MS)
+        }
     }
 
-    override fun onStop() {
-        main.removeCallbacks(tick)
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        link.close()
-        super.onDestroy()
-    }
-
-    override fun onConnected(uri: String) {
-        status.text = getString(R.string.status_connected, uri)
-    }
-
-    override fun onDisconnected(error: String?) {
-        val text = if (error == null) getString(R.string.status_disconnected) else getString(R.string.status_error, error)
-        status.text = text
-        Snackbar.make(findViewById(R.id.root), text, Snackbar.LENGTH_LONG).show()
-    }
-
-    override fun onMessage(topic: String, payload: String) {
-        if (topic != Topic.CMD) return
+    private fun onCommand(payload: String) {
         val cmd = ProtocolCodec.decodeCommand(payload)
         if (cmd != null) sim.apply(cmd)
-        val line = clock.format(Date()) + "  " + (if (cmd == null) "ignored " else "") + payload
-        log.addFirst(line)
+        log.addFirst(clock.format(Date()) + "  " + (if (cmd == null) "ignored " else "") + payload)
         while (log.size > LOG_LINES) log.removeLast()
-        logView.text = log.joinToString("\n")
+        b.log.text = log.joinToString("\n")
         renderState()
     }
 
     private fun renderState() {
         val joints = sim.joints.joinToString(" ") { String.format(Locale.US, "%.0f", it) }
-        stateView.text = String.format(
+        val pose = sim.pose?.let { "\n" + getString(R.string.body_pose_note, it.wire) }.orEmpty()
+        b.state.text = String.format(
             Locale.US,
-            "x %.3f m   z %.3f m\nyaw %.2f rad\ngait %s   mode %s\nidle %.1f s\njoints %s",
-            sim.x, sim.z, sim.yaw, sim.gait.wire, sim.mode.wire, sim.operatorIdle, joints,
+            "x %.3f m   z %.3f m\nyaw %.2f rad\ngait %s   mode %s\nidle %.1f s\njoints %s%s",
+            sim.x, sim.z, sim.yaw, sim.gait.wire, sim.mode.wire, sim.operatorIdle, joints, pose,
         )
     }
 
-    companion object {
-        private const val TICK_MS = 100L
-        private const val LOG_LINES = 30
+    override fun onDestroy() {
+        if (::b.isInitialized) link.unsubscribeCommands()
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val TICK_MS = 100L
+        const val LOG_LINES = 30
     }
 }

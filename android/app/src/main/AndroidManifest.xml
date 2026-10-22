@@ -4,22 +4,23 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".AranaApp"
         android:allowBackup="false"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Arana"
-        android:usesCleartextTraffic="true">
+        android:theme="@style/Theme.Arana">
 
         <activity
             android:name=".LoginActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ConnectionActivity" android:exported="false" />
-        <activity android:name=".ControlActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".BodyModeActivity" android:exported="false" />
     </application>
 </manifest>

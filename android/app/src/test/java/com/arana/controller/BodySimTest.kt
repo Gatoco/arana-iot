@@ -118,4 +118,54 @@ class BodySimTest {
         assertEquals(8, t.joints.size)
         assertEquals(null, t.distance)
     }
+
+    @Test
+    fun neutralStanceUsesHipKneeOrder() {
+        val sim = BodySim()
+        assertEquals(listOf(45.0, 65.0, 45.0, 65.0, -45.0, 65.0, -45.0, 65.0), sim.joints.toList())
+    }
+
+    @Test
+    fun walkingKeepsKneesAtOrAboveNeutralAndHipsAroundNeutral() {
+        val sim = BodySim()
+        sim.apply(Command.Move(1.0, 0.0))
+        run(sim, 2.0)
+        for (leg in 0 until 4) {
+            assertTrue(sim.joints[leg * 2 + 1] >= 65.0 - 1e-9)
+            assertTrue(Math.abs(sim.joints[leg * 2] - listOf(45.0, 45.0, -45.0, -45.0)[leg]) <= 15.0 + 1e-9)
+        }
+    }
+
+    @Test
+    fun stopReturnsToRestNeutral() {
+        val sim = BodySim()
+        sim.apply(Command.Move(1.0, 0.0))
+        run(sim, 1.0)
+        sim.apply(Command.Stop)
+        run(sim, 0.1)
+        assertEquals(Gait.REST, sim.gait)
+        assertEquals(65.0, sim.joints[1], 1e-9)
+    }
+
+    @Test
+    fun poseStopsWalkAndMoveCancelsIt() {
+        val sim = BodySim()
+        sim.apply(Command.Move(1.0, 0.0))
+        sim.apply(Command.Pose(Pose.STANDBY))
+        run(sim, 0.1)
+        assertEquals(Gait.REST, sim.gait)
+        assertEquals(Pose.STANDBY, sim.pose)
+        assertEquals(75.0, sim.joints[1], 1e-9)
+        sim.apply(Command.Move(0.5, 0.0))
+        assertEquals(null, sim.pose)
+    }
+
+    @Test
+    fun otherPosesAreRecordedButNotSimulated() {
+        val sim = BodySim()
+        sim.apply(Command.Pose(Pose.DANCE1))
+        run(sim, 0.1)
+        assertEquals(Pose.DANCE1, sim.pose)
+        assertEquals(65.0, sim.joints[1], 1e-9)
+    }
 }

@@ -103,6 +103,67 @@ The broker for the phone app and the desktop twin is Mosquitto on the T420
 through the existing Cloudflare tunnel and the Android handoff are described in
 [`docs/remote-control.md`](docs/remote-control.md).
 
+## Android command center
+
+The native Kotlin app in [`android/`](android/) is the field controller. The desktop Electron
+app remains the 3D body and test bench; the phone has a 2D tactical map, a joystick, the nine
+firmware actions, live servo angles and the packet log.
+
+### Build and install
+
+```bash
+cd android
+ANDROID_HOME=/home/iwakura/Android/Sdk ./gradlew test lintDebug assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+A prebuilt debug APK is committed at
+[`android/arana-command-center-0.2.0-debug.apk`](android/arana-command-center-0.2.0-debug.apk).
+The full acceptance script is in [`docs/android-demo.md`](docs/android-demo.md).
+
+### Login
+
+The first screen is the only login. It authenticates directly against the T420 Mosquitto
+broker; there is no local account database and no separate connection screen.
+
+| Field | Default |
+| --- | --- |
+| Server URL | `wss://mqtt.t420.dev/mqtt` |
+| Username | `conectoma` |
+| Password | `cont1234` |
+
+These are **test credentials for the classroom demo**, explicitly requested by the project
+owner. They are public in this repository; do not reuse them outside this demo. The remembered
+copy is stored with `EncryptedSharedPreferences`.
+
+At the time of this commit `mqtt.t420.dev` is **not yet provisioned** in the Cloudflare tunnel.
+The default URL therefore fails with “Cannot reach the server”. Until the tunnel step in
+[`docs/remote-control.md`](docs/remote-control.md) is done, edit the Server URL to the LAN or
+Tailscale address above. Debug builds allow cleartext for those two addresses; release builds
+keep TLS on.
+
+### Electron body preflight
+
+The phone can only control the Electron twin when both are connected to the **same broker**.
+The phone does not launch Electron.
+
+1. Open the Electron app and switch its Link panel from Loopback to MQTT.
+2. Enter the same server URL, username and password, then Connect.
+3. Confirm that telemetry is moving in the desktop app.
+4. Connect the phone. If no telemetry arrives, the Console shows
+   `NO TELEMETRY — connect the Electron body to the same broker.` instead of pretending the
+   controls work.
+
+### EVA2 mapping
+
+| Requirement | Where |
+| --- | --- |
+| Real login | MQTT CONNECT against Mosquitto; the app waits for CONNACK and stays on Login on failure |
+| Monitoring | Console telemetry cards, tactical map, packet log |
+| Activator | Joystick, throttle `Slider`, gait `RadioButton`s, auto/manual `Switch`, nine actions |
+| Two instances | Body Mode (demo) on one device + Console on another, both on the same broker |
+| Security | TLS default, encrypted remembered credentials, no password in logs or Intents, test-password warning |
+
 ## Screenshots
 
 | Hero | Front | Top | Side |
